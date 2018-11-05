@@ -8,6 +8,7 @@
 # their word embeddings, store them in a binary search tree, and do various
 # functions using the tree.
 
+from timeit import default_timer as timer
 from AVL_Tree import AVLTree
 from AVL_Tree import AVLNode
 from RB_Tree import RBTree
@@ -59,127 +60,16 @@ def print_tree_inorder(root):
     print(root.embedding)
     print_tree_inorder(root.right)
 
-# Function that populates an AVL tree with keys and embeddings
-# from glove file
-def populate_AVL(filename):
-    file = open(filename, "r", encoding="utf8")
-    tree = AVLTree()
-    for line in file:
-        current = line.split(" ")
-        # For each line in the file, if the word starts with an alphabetic
-        # character, insert the word and embedding in a node within the tree
-        if "a" <= current[0][0].lower() <= "z":
-            embedding = []
-            # Populate the embedding list
-            for num in current[1:]:
-                embedding.append(float(num))
-            node = AVLNode(current[0].strip(), embedding)
-            tree.insert(node)
-    return tree
-
-# Function that populates a red black tree
-def populate_RBT(filename):
-    file = open(filename, "r", encoding="utf8")
-    tree = RBTree()
-    for line in file:
-        current = line.split(" ")
-        # For each line in the file, if the word starts with an alphabetic
-        # character, insert the word and embedding in a node within the tree
-        if "a" <= current[0][0].lower() <= "z":
-            embedding = []
-            for num in current[1:]:
-                embedding.append(float(num))
-            tree.insert(current[0].strip(), embedding)
-    return tree
-
-# Function that gives the user operation options and then performs
-# the operation chosen
-def tree_functionalities(tree):
-    while True:
-        # Give user operation options
-        operation = input("\n [a]: Print the number of nodes in the tree\n"+
-                          " [b]: Print the height of the tree\n"+
-                          " [c]: Generate a file containing all the words in the tree\n" +
-                          " [d]: Generate the file containing all the words with a certain depth in the tree\n"+
-                          " [f]: Compute similarity between two words from a file\n" +
-                          " [p]: Print the words and embeddings in the tree\n" +
-                          " [e]: Cancel and go back\n" +
-                          "Input an operation to perform: ")
-        # Counts the node in the tree
-        if operation == "a":
-            print(count_tree(tree.root))
-        # Computes the height of the tree
-        elif operation == "b":
-            print(get_height(tree.root))
-        # Generates a file with all the words in the file
-        elif operation == "c":
-            file = open("words_in_tree.txt", "w", encoding="utf8")
-            generate_file_inorder(tree.root, file)
-            file.close()
-        # Generates a file that contains all nodes with a certain depth
-        elif operation == "d":
-            d = input("Provide the depth of the nodes you wish to generate: ")
-            file = open("words_with_depth_" + d + ".txt", "w", encoding="utf8")
-            generate_file_depth(tree.root, int(d), file)
-            file.close()
-        elif operation == "e":
-            return
-        # Computes similarities of two words in a file
-        elif operation == "f":
-            read_words_file(tree)
-        # Prints all nodes and embeddings from the tree
-        elif operation == "p":
-            print_tree_inorder(tree.root)
-        else:
-            print("Operation not recognized. Please try again.")
-
-# Function that reads the glove file
-def read_glove_file():
-    glove_filename = "glove.6B.50d.txt"
-    while True:
-        try:
-            # Ask user the operation they want to perform
-            tree_pref = input("What type of tree would you like to work with?\n" +
-                              " [1]: AVL Tree\n [2]: Red-Black Tree\n" +
-                              "Input the number of desired command (or \"e\" to exit): ")
-            # If user enters 1 use avl tree
-            if tree_pref == "1":
-                tree = populate_AVL(glove_filename)
-                tree_functionalities(tree)
-            # If user enters 2 use red black tree
-            elif tree_pref == "2":
-                tree = populate_RBT(glove_filename)
-                tree_functionalities(tree)
-            # If user enters e, exit
-            elif tree_pref.lower() == "e":
-                return
-            else:
-                print("Command not recognized. Try again.")
-        # Give user option to provide filename if glove file not in default location
-        except FileNotFoundError:
-            print(glove_filename + " file was not found on same directory as this program.\n" +
-                  "Provide path and name of file with word and embeddings(\"e\" to exit): ")
-            prompt = input()
-            if prompt.lower() == "e":
-                sys.exit()
-            else:
-                glove_filename = prompt
-        # This will likely execute if the embedding for a word is incorrect
-        except ValueError as ee:
-            print("ValueError found, likely in the embeddings for the file. Check the embedding in the file and try again.")
-        except Exception as ee:
-            print(ee)
-
 # Searches a binary search tree for a words and returns its embedding if present
 def get_embedding(word, root):
     # This executes if word could not be found
     if root is None:
-        print("Word not found within the tree, make sure the word is in the glove file")
+        print("Word", word, "not found within the tree, make sure the word is in the glove file")
         return None
     # Use binary search to find word
-    if word.lower().strip() == root.item.lower():
+    if word.lower() == root.item.lower():
         return root.embedding
-    elif word.lower().strip() < root.item.lower():
+    elif word.lower() < root.item.lower():
         return get_embedding(word, root.left)
     else:
         return get_embedding(word, root.right)
@@ -217,11 +107,15 @@ def read_words_file(tree):
     while True:
         try:
             # Open the file
+            start = timer()
             file = open(words_filename, "r", encoding="utf8")
             # Compute and print the similarity for each line in the file
             for line in file:
-                words = line.split(" ")
-                print("Similarity between", words[0], "and", words[1].strip(), ":", compute_similarity(words, tree))
+                words = line.strip().split(" ")
+                print("Similarity between", words[0], "and", words[1], ":", compute_similarity(words, tree))
+            runtime = round((timer() - start) * 1000, 3)
+            print("Runtime of the operation:", runtime, "milliseconds")
+
             return
         # If file was not found, give user option to provide custom path to a file
         except FileNotFoundError:
@@ -235,7 +129,144 @@ def read_words_file(tree):
         except Exception as ee:
             print(ee)
 
+# Function that gives the user operation options and then performs
+# the operation chosen
+def tree_functionalities(tree):
+    while True:
+        # Give user operation options
+        operation = input("\n [a]: Print the number of nodes in the tree\n"+
+                          " [b]: Print the height of the tree\n"+
+                          " [c]: Generate a file containing all the words in the tree\n" +
+                          " [d]: Generate the file containing all the words with a certain depth in the tree\n"+
+                          " [f]: Compute similarity between two words from a file\n" +
+                          " [p]: Print the words and embeddings in the tree\n" +
+                          " [e]: Cancel and go back\n" +
+                          "Input an operation to perform: ")
+        # Counts the node in the tree
+        if operation == "a":
+            start = timer()
+            print(count_tree(tree.root))
+            runtime = round((timer()-start)*1000, 3)
+            print("Runtime of operation:", runtime, "milliseconds")
+        # Computes the height of the tree
+        elif operation == "b":
+            start = timer()
+            print(get_height(tree.root))
+            runtime = round((timer()-start)*1000, 3)
+            print("Runtime of operation:", runtime, "milliseconds")
+        # Generates a file with all the words in the file
+        elif operation == "c":
+            start = timer()
+            file = open("words_in_tree.txt", "w", encoding="utf8")
+            generate_file_inorder(tree.root, file)
+            file.close()
+            runtime = round((timer()-start)*1000, 3)
+            print("Runtime of operation:", runtime, "milliseconds")
+        # Generates a file that contains all nodes with a certain depth
+        elif operation == "d":
+            d = input("Provide the depth of the nodes you wish to generate: ")
+            start = timer()
+            # Check whether writing file using avl or rb tree since elements may change
+            if type(tree) is AVLTree:
+                file = open("avl_words_with_depth_" + d + ".txt", "w", encoding="utf8")
+            else:
+                file = open("rbt_words_with_depth_" + d + ".txt", "w", encoding="utf8")
+            generate_file_depth(tree.root, int(d), file)
+            file.close()
+            runtime = round((timer()-start)*1000, 3)
+            print("Runtime of operation:", runtime, "milliseconds")
+        elif operation == "e":
+            return
+        # Computes similarities of two words in a file
+        elif operation == "f":
+            read_words_file(tree)
+        # Prints all nodes and embeddings from the tree
+        elif operation == "p":
+            start = timer()
+            print_tree_inorder(tree.root)
+        else:
+            print("Operation not recognized. Please try again.")
+
+# Function that populates a red black tree
+def populate_RBT(filename):
+    file = open(filename, "r", encoding="utf8")
+    tree = RBTree()
+    for line in file:
+        current = line.strip().split(" ")
+        # For each line in the file, if the word starts with an alphabetic
+        # character, insert the word and embedding in a node within the tree
+        if "a" <= current[0][0].lower() <= "z":
+            embedding = []
+            for num in current[1:]:
+                embedding.append(float(num))
+            tree.insert(current[0].strip(), embedding)
+    return tree
+
+# Function that populates an AVL tree with keys and embeddings
+# from glove file
+def populate_AVL(filename):
+    file = open(filename, "r", encoding="utf8")
+    tree = AVLTree()
+    for line in file:
+        current = line.strip().split(" ")
+        # For each line in the file, if the word starts with an alphabetic
+        # character, insert the word and embedding in a node within the tree
+        if "a" <= current[0][0].lower() <= "z":
+            embedding = []
+            # Populate the embedding list
+            for num in current[1:]:
+                embedding.append(float(num))
+            node = AVLNode(current[0].strip(), embedding)
+            tree.insert(node)
+    return tree
+
+# Function that reads the glove file
+def read_glove_file():
+    glove_filename = "glove.6B.50d.txt"
+    while True:
+        try:
+            # Ask user the operation they want to perform
+            tree_pref = input("What type of tree would you like to work with?\n" +
+                              " [1]: AVL Tree\n [2]: Red-Black Tree\n" +
+                              "Input the number of desired command (or \"e\" to exit): ")
+            # If user enters 1 use avl tree
+            if tree_pref == "1":
+                start = timer()
+                tree = populate_AVL(glove_filename)
+                runtime = round((timer() - start)*1000, 3)
+                print("  --Time to populate AVL tree from file:", runtime, " milliseconds")
+                tree_functionalities(tree)
+            # If user enters 2 use red black tree
+            elif tree_pref == "2":
+                start = timer()
+                tree = populate_RBT(glove_filename)
+                runtime = round((timer() - start)*1000, 3)
+                print("  --Time to populate black red tree from file:", runtime, " milliseconds")
+                tree_functionalities(tree)
+            # If user enters e, exit
+            elif tree_pref.lower() == "e":
+                return
+            else:
+                print("Command not recognized. Try again.")
+        # Give user option to provide filename if glove file not in default location
+        except FileNotFoundError:
+            print(glove_filename + " file was not found on same directory as this program.\n" +
+                  "Provide path and name of file with word and embeddings(\"e\" to exit): ")
+            prompt = input()
+            if prompt.lower() == "e":
+                sys.exit()
+            else:
+                glove_filename = prompt
+        # This will likely execute if the embedding for a word is incorrect
+        except ValueError:
+            print("ValueError found, likely in the embeddings for the file." +
+                  " Check the embeddings in the file and try again.")
+        except Exception as ee:
+            print(ee)
+
+
 def main():
     read_glove_file()
+
 
 main()
